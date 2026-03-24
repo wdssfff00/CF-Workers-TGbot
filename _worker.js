@@ -1,39 +1,7 @@
 let TELEGRAM_TOKEN;
 
-function buildCorsHeaders(request) {
-    const requestHeaders = request.headers.get("Access-Control-Request-Headers");
-    const origin = request.headers.get("Origin");
-    return {
-        "Access-Control-Allow-Origin": origin || "*",
-        "Access-Control-Allow-Methods": "GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS",
-        "Access-Control-Allow-Headers": requestHeaders || "*",
-        "Access-Control-Max-Age": "86400",
-        "Vary": "Origin, Access-Control-Request-Headers"
-    };
-}
-
-function withCors(response, request) {
-    const headers = new Headers(response.headers);
-    const corsHeaders = buildCorsHeaders(request);
-    for (const [key, value] of Object.entries(corsHeaders)) {
-        headers.set(key, value);
-    }
-    return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers
-    });
-}
-
 export default {
     async fetch(request, env) {
-        if (request.method === "OPTIONS") {
-            return new Response(null, {
-                status: 204,
-                headers: buildCorsHeaders(request)
-            });
-        }
-
         const url = new URL(request.url);
         const userAgentHeader = request.headers.get('User-Agent');
         const userAgent = userAgentHeader ? userAgentHeader.toLowerCase() : "null";
@@ -46,12 +14,9 @@ export default {
                 try {
                     const update = await request.json();
                     const response = await handleUpdate(update);
-                    return withCors(
-                        new Response(response ? JSON.stringify(response) : "OK", { status: 200 }),
-                        request
-                    );
+                    return new Response(response ? JSON.stringify(response) : "OK", { status: 200 });
                 } catch (e) {
-                    return withCors(new Response(e.stack, { status: 200 }), request);
+                    return new Response(e.stack, { status: 200 });
                 }
             }
 
@@ -70,12 +35,9 @@ export default {
                         ]
                     }).then(r => r.json());
 
-                    return withCors(
-                        new Response(JSON.stringify(result, null, 2), {
-                            headers: { "Content-Type": "application/json" }
-                        }),
-                        request
-                    );
+                    return new Response(JSON.stringify(result, null, 2), {
+                        headers: { "Content-Type": "application/json" }
+                    });
                 } else {
                     try {
                         const botUsernameUrl = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/getMe`;
@@ -110,7 +72,7 @@ export default {
         });
 
         // 发送请求并返回响应
-        return withCors(await fetch(newRequest), request);
+        return fetch(newRequest);
     }
 };
 
